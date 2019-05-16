@@ -1,0 +1,231 @@
+\documentclass{beamer}
+% \documentclass[handout]{beamer}
+\usetheme{focus}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\input{math_commands.tex}
+
+\title{Learning GNN in Noisy Settings}
+\subtitle{JFLI Tokyo Tech Workshop 2019}
+\author{Hoang NT}
+\titlegraphic{\includegraphics[scale=0.3]{imgs/dot.png}}
+\institute{Murata Laboratory \\ Tokyo Tech \vspace{4em}}
+\date{2019/05/16}
+
+\begin{document}
+    \begin{frame}
+        \maketitle
+    \end{frame}
+
+    \begin{frame}{Overview}
+        \tableofcontents
+    \end{frame}
+
+    \section{GCN Introduction}
+
+    \subsection{Problems}
+
+    \begin{frame}{Popular Problems on Graph-Structured Data}
+        There are two main problems:
+        \pause
+        \begin{itemize}
+            \item Answering questions on vertices.
+            \pause
+            \item Answering questions about the graph.
+        \end{itemize}
+        \pause
+        \vspace{1em}
+        \begin{block}{Semi-supervised vertex classification}
+            Given a graph structured data $\mathcal{G} = (A, \mathcal{X}, \mathcal{C}, J_{\text{train}})$,
+            we want to find: $\mathcal{C}_i \ \forall i \in V(A) - J_{\text{train}}$.
+        \end{block}
+        \vspace{1em}
+        \begin{block}{Semi-supervised graph classification}
+            Given a collection of graphs $\mathcal{S} = (\{A_i\}, \mathcal{X}_i, \mathcal{C}_\mathcal{G}, J_{\text{train}})$,
+            we want to find: $\mathcal{C}(\mathcal{G}_i) \ \forall i \in \{A_j\} - J_{\text{train}}$.
+        \end{block}
+    \end{frame}
+
+    \begin{frame}{Visually...}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.6\textwidth]{imgs/input.png}
+            \caption{Vertex Classification~\cite{sgc}}
+            \label{fig:input}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}{Visually...}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.6\textwidth]{imgs/scheme}
+            \caption{Graph Classification~\cite{my_lld2019}}
+            \label{fig:lld2019}
+        \end{figure}
+    \end{frame}
+
+    \subsection{Approaches}
+
+    \begin{frame}{Approach: Only Use Graph Structure}
+        Graph representation learning:
+        \pause
+        \begin{itemize}
+            \item Spectral Clustering \cite{specs}, Modularity \cite{mod}
+            \pause
+            \item Label Propagation \cite{lp}
+            \pause
+            \item Deepwalk \cite{dw}, node2vec \cite{nv} 
+            \pause
+            \item Weifesler-Lehman isomorphism test
+        \end{itemize}
+        \pause
+        \vspace{1em }
+        \bf{Common theme}: Graph \pause$\rightarrow$ Surrogate Structure \pause$\rightarrow$ Manifold Learning \pause$\rightarrow$ Vertex/Graph Representations.
+    \end{frame}
+
+    \begin{frame}{Approach: Graph Structure + Other Information}
+        Using $\mathcal{G} = (A, \mathcal{X}, \mathcal{C}, J_{\text{train}}, \mathcal{C})$
+        \vspace{1em}
+        \pause
+        \begin{itemize}
+            \item SemiEmb \cite{semiemb}, Planetoid \cite{planetoid}
+            \pause 
+            \item GCN \cite{gcn}, SGC \cite{sgc} 
+            \pause
+            \item GraphSAGE \cite{sage}, DGI \cite{dgi}
+            \pause
+            \item GIN \cite{gin}
+        \end{itemize}
+        \pause
+        \vspace{1em}
+        \bf{Common theme}: Graph + Features \pause$\rightarrow$ Average Features \pause$\rightarrow$ Loss Backpropagation \pause$\rightarrow$ Vertex/Graph Representations.
+    \end{frame}
+
+    \begin{frame}{Visually...}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.8\textwidth]{imgs/gcn.png}
+            \caption{A Doodle of GCN\cite{gcn}}
+            \label{fig:gcn}
+        \end{figure}
+    \end{frame}
+
+    \section{Label Noise}
+
+    \begin{frame}{Wrong labels are given to training data}
+        We addresses the error of GCN models under ``wrong'' labels.
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.6\textwidth]{imgs/scheme}
+            \caption{Noisy training}
+            \label{fig:sgc}
+        \end{figure}
+    \end{frame}
+
+    \subsection{Loss Correction Scheme}
+
+    \begin{frame}{Observation}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.6\textwidth]{imgs/MUTAG_noisy_training}
+            \caption{MUTAG (binary clf) under symmetric label noise}
+            \label{fig:mutag}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}{GNN Model}
+        \begin{enumerate}
+          \item Accumulate neighborhood information to each vertex $\vv$ and neural network layer $(k)$:
+        \vspace{-0.5em}
+        \begin{equation*}
+          \begin{split}
+        \rva^{(k)}_{v} & = \texttt{AGGREGATE}^{(k)} (\{\rvh^{(k-1)}_u: u \in \mathcal{N}(v)\}), \\
+        \rvh^{(k)}_v & = \texttt{COMBINE}^{(k)} (\rvh_v^{(k-1)}, \rva_v^{(k)})
+          \end{split}
+        \end{equation*}
+
+          \item Employ a function to learn the overall representation of the graph, then the objective $\ell$ is optimized with standard backpropagation.
+          \vspace{-0.5em}
+        \begin{equation*}
+          \begin{split}
+        \rvh_{\gG} & = \texttt{READOUT} (\{\rvh^{(K)}_v: v \in \gG\}), \\
+        \ell(p(y|\rvh_\gG), y_\gG) & = \texttt{XENTROPY} (p(y|\rvh_\gG), y_\gG)
+          \end{split}
+        \end{equation*}
+        \end{enumerate}
+    \end{frame}
+
+    \begin{frame}{Visually...}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.8\textwidth]{imgs/gnn}
+            \caption{Simple GNN}
+            \label{fig:gnn}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}{Simple Loss Correction}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.5\textwidth]{imgs/scheme}
+            \caption{Graph Classification~\cite{my_lld2019}}
+            \label{fig:lld2019}
+        \end{figure}
+        $$\ell^{\leftarrow}(p(y|\rvh_\gG), y_\gG) = \mC^{-1} \cdot  \texttt{CROSS\_ENTROPY} (p(y|\rvh_\gG), y_\gG)$$
+    \end{frame}
+
+    \begin{frame}{The Good}
+        \footnotesize
+        \begin{tabular}{lcccccccc}
+                                   & IMDB-M   & COLLAB    & IMDB-B   & PROTEINS    & PTC         & NCI1 \\
+    \hline \\
+    GIN                          & .4476    & .6544     & .6573    & .6257       & .4824       & .6472 \\
+    GraphSAGE                   & .4373        & -         & .6410    & .6583       & .4892       & .6053 
+    \vspace{0.5em}\\
+    \hline \vspace{-0.5em} \\
+    D-GNN-C                     &  \bf.4747   &  .5979    & \bf.6940 & \bf.6693    & \bf.5557       &  .6170 \\
+    D-GNN-A                    &  \bf.4505   &  \bf.6917 & \bf.7088 & \bf.6769    & \bf.5001       & .6405  \\
+    D-GNN-E                    &  \bf.4633   &  \bf.6960 & \bf.7190 & \bf.6917    & \bf.5235       & \bf.6638 \\
+  \end{tabular}
+    \end{frame}
+
+
+    \begin{frame}{The Bad}
+        \begin{figure}
+            \centering
+            \includegraphics[width=\textwidth]{imgs/notgood}
+            \caption{Performance is not particularly good}
+            \label{fig:d}
+        \end{figure}
+    \end{frame}
+
+
+    \section{Another Perspective}
+
+    \subsection{Graph Signal Processing}
+
+    \begin{frame}{GNN is just denoising}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.7\textwidth]{imgs/cora_freq}
+            \caption{Accuracy of a MLP on Cora dataset.}
+            \label{fig:freqcora}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}[focus]
+        Thanks for listening!
+    \end{frame}
+
+    \appendix
+    \begin{frame}[allowframebreaks]
+        \nocite{*}
+        \bibliography{main}
+        \bibliographystyle{plain}
+    \end{frame}
+\end{document}
