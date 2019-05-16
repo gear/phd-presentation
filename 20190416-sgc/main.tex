@@ -1,0 +1,213 @@
+\documentclass{beamer}
+% \documentclass[handout]{beamer}
+\usetheme{focus}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\title{Simplifying Graph Convolutional Networks}
+\subtitle{ICML'19(?), Felix Wu et al.}
+\author{Hoang NT}
+\titlegraphic{\includegraphics[scale=0.3]{imgs/dot.png}}
+\institute{Murata Laboratory \\ Tokyo Tech \vspace{4em}}
+\date{2019/04/16}
+
+\begin{document}
+    \begin{frame}
+        \maketitle
+    \end{frame}
+
+    \begin{frame}{Overview}
+        \tableofcontents
+    \end{frame}
+
+    \section{GCN Introduction}
+
+    \subsection{Problems}
+
+    \begin{frame}{Popular Problems on Graph-Structured Data}
+        There are two main problems:
+        \pause
+        \begin{itemize}
+            \item Answering questions on vertices.
+            \pause
+            \item Answering questions about the graph.
+        \end{itemize}
+        \pause
+        \vspace{1em}
+        \begin{block}{This paper is about classifying vertices}
+            Given a graph structured data $\mathcal{G} = (A, \mathcal{X}, \mathcal{C}, J_{\text{train}}, \mathcal{C})$,
+            we want to find: $\mathcal{C}_i \ \forall i \in V(A) - J_{\text{train}}$.
+        \end{block}
+    \end{frame}
+
+    \begin{frame}{Visually...}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.6\textwidth]{imgs/input.png}
+            \caption{Input Graph Example}
+            \label{fig:input}
+        \end{figure}
+    \end{frame}
+
+    \subsection{Approaches}
+
+    \begin{frame}{Approach: Only Use Graph Structure}
+        Graph representation learning:
+        \pause
+        \begin{itemize}
+            \item Spectral Clustering \cite{specs}, Modularity \cite{mod}
+            \pause
+            \item Label Propagation \cite{lp}
+            \pause
+            \item Deepwalk \cite{dw}, node2vec \cite{nv} 
+            \pause
+            \item (and many more)
+        \end{itemize}
+        \pause
+        \vspace{1em }
+        \bf{Common theme}: Graph \pause$\rightarrow$ Surrogate Structure \pause$\rightarrow$ Manifold Learning \pause$\rightarrow$ Node Representaions.
+    \end{frame}
+
+    \begin{frame}{Approach: Graph Structure + Other Information}
+        Using $\mathcal{G} = (A, \mathcal{X}, \mathcal{C}, J_{\text{train}}, \mathcal{C})$
+        \vspace{1em}
+        \pause
+        \begin{itemize}
+            \item SemiEmb \cite{semiemb}, Planetoid \cite{planetoid}
+            \pause 
+            \item GCN \cite{gcn}, \textbf{SGC} (this paper)
+            \pause
+            \item GraphSAGE \cite{sage}, DGI \cite{dgi}
+            \pause
+            \item (and a few more)
+        \end{itemize}
+        \pause
+        \vspace{1em}
+        \bf{Common theme}: Graph + Features \pause$\rightarrow$ Average Features \pause$\rightarrow$ Loss Backpropagation \pause$\rightarrow$ Node Representations.
+    \end{frame}
+
+    \begin{frame}{Visually...}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.8\textwidth]{imgs/gcn.png}
+            \caption{A Doodle of GCN}
+            \label{fig:gcn}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}{Steps for GCN}
+        Essentially, there are three steps to perform GCN:
+        \pause
+        \begin{enumerate}
+            \item Feature propagation: $\bar{H}^{(k)} = SH^{(k-1)}$, where $S = \tilde{D}^{-1/2} \tilde{A} \tilde{D}^{-1/2}$ and $H^{(k)}$ is the activation at the $k-$th layer.
+            \pause
+            \item Activation: $H^{(k)} = \text{ReLU}(\bar{H}^{(k)}\Theta^{(k)})$
+            \pause
+            \item Classification: $\hat{Y}_\text{gcn} = \text{softmax}(SH^{(K-1)}\Theta^{(K)})$
+        \end{enumerate}
+    \end{frame}
+
+    \section{Simplifying GCN}
+
+    \begin{frame}{This paper}
+        \emph{Simplifying GCN"} addresses the excess complexity in recent GCN models.
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.9\textwidth]{imgs/sgc.png}
+            \caption{SGC model}
+            \label{fig:sgc}
+        \end{figure}
+        \pause
+        \begin{block}{Main experiment}
+            \textbf{Input}: $\mathcal{G} = (A, \mathcal{X}, \mathcal{C}, J_{\text{train}}, \mathcal{C})$ \\
+            \textbf{Output}: $\mathcal{C}_i \ \forall i \in V(A) - J_{\text{train}}$
+        \end{block}
+    \end{frame}
+
+    \subsection{Simplest Formulation}
+
+    \begin{frame}{Observation}
+       \begin{block}{Hypothesis: Nonlinearity is not important}
+            \textcolor{example}{The main} factor in the power of a GNN is the
+            feature averaging step (GCN step 1), \emph{not the nonlinearity between layers} (GCN step 2).
+       \end{block} 
+    \end{frame}
+
+    \begin{frame}{Formulation}
+        Removing all activation function between $K$ layers:
+        $$\hat{Y} = \text{softmax}(SS...S\mathcal{X}\Theta^{(1)}\Theta^{(2)}...\Theta^{(K)})$$
+        Since everything is matrix multiplications:
+        \begin{block}{Simple Graph Convolution}
+            $$\hat{Y}_\text{sgc} = \text{softmax}(S^K\mathcal{X}\Theta)$$
+        \end{block}
+    \end{frame}
+
+    \section{Experiments \& Results}
+
+    \subsection{Datasets}
+
+    \begin{frame}{Datasets}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.7\textwidth]{imgs/data.png}
+            \caption{Datasets}
+            \label{fig:data}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}{Competitors}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.95\textwidth]{imgs/comp.png}
+            \caption{Competitors and their performance}
+            \label{fig:comp}
+        \end{figure}
+    \end{frame}
+
+    \subsection{Results}
+
+    \begin{frame}{Results}
+    \begin{figure}
+        \centering
+        \begin{subfigure}{.5\textwidth}
+          \centering
+          \includegraphics[width=.9\linewidth]{imgs/r1.png}
+          \caption{Classic Datasets for GNNs}
+          \label{fig:r1}
+        \end{subfigure}%
+        \begin{subfigure}{.5\textwidth}
+          \centering
+          \includegraphics[width=.9\linewidth]{imgs/r2.png}
+          \caption{Reddit Dataset}
+          \label{fig:r2}
+        \end{subfigure}
+        \caption{Results for SGC}
+        \label{fig:results}
+    \end{figure}
+\end{frame}
+
+    \subsection{Conclusion}
+
+    \begin{frame}{Conclusion}
+        \pause
+        The authors have demonstrated:
+        \pause
+        \begin{enumerate}
+            \item The activations might not be needed between graph layers.
+            \pause
+            \item Simple formulation can give fast and high accuracy results.
+        \end{enumerate}
+    \end{frame}
+
+    \begin{frame}[focus]
+        Thanks for listening!
+    \end{frame}
+
+    \appendix
+    \begin{frame}[allowframebreaks]
+        \nocite{*}
+        \bibliography{main}
+        \bibliographystyle{plain}
+    \end{frame}
+\end{document}
